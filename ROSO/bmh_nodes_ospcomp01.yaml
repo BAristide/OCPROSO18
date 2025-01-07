@@ -1,0 +1,70 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+ name: osp-comp-0-network-config-secret
+ namespace: openshift-machine-api
+type: Opaque
+stringData:
+ nmstate: |
+  interfaces:
+  - name: ens3
+    type: ethernet
+    state: up
+    ipv4:
+      enabled: true
+      dhcp: true
+    ipv6:
+      enabled: false
+      dhcp: false
+  - name: bond0
+    type: bond
+    state: up
+    ipv4:
+      address:
+      - ip: 172.17.77.65
+        prefix-length: 24
+      enabled: true
+    link-aggregation:
+      mode: 'active-backup'
+      options:
+        miimon: '100'
+      port:
+      - ens4
+      - ens5
+    mtu: 1500
+  dns-resolver:
+    config:
+      server:
+      - 172.17.77.254
+  routes:
+    config:
+    - destination: 0.0.0.0/0
+      next-hop-address: 172.17.77.254
+      next-hop-interface: bond0
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: osp-comp-0-bmc-secret
+  namespace: openshift-machine-api
+type: Opaque
+data:
+  username: c2VjcmV0
+  password: c2VjcmV0
+---
+apiVersion: metal3.io/v1alpha1
+kind: BareMetalHost
+metadata:
+  name: osp-comp-0
+  namespace: openshift-machine-api
+spec:
+  online: false
+  bootMode: UEFI
+  bootMACAddress: 52:54:00:94:1a:c6
+  bmc:
+    address: ipmi://10.10.0.1:60093
+    credentialsName: osp-comp-0-bmc-secret
+  rootDeviceHints:
+    deviceName: "/dev/vda"
+  preprovisioningNetworkDataName: osp-comp-0-network-config-secret
