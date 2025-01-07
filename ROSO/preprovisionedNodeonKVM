@@ -1,0 +1,31 @@
+sudo qemu-img create -f qcow2 -o preallocation=metadata /var/lib/libvirt/images/edpm-compute-01.qcow2 250G &&
+sudo qemu-img create -f qcow2 -o preallocation=metadata /var/lib/libvirt/images/edpm-compute-02.qcow2 250G &&
+sudo virt-resize --expand /dev/sda4 rhel9.2-x86_64-kvm-director.qcow2 /var/lib/libvirt/images/edpm-compute-01.qcow2 &&
+sudo virt-resize --expand /dev/sda4 rhel9.2-x86_64-kvm-director.qcow2 /var/lib/libvirt/images/edpm-compute-02.qcow2 &&
+sudo virt-customize -a edpm-compute-01.qcow2 --uninstall cloud-init --root-password password:mypassword &&
+sudo virt-customize -a edpm-compute-02.qcow2 --uninstall cloud-init --root-password password:mypassword &&
+sudo virt-install --ram 16384 --vcpus 8 --os-variant rhl9 \
+--disk path=/var/lib/libvirt/images/edpm-compute-02.qcow2,device=disk,bus=virtio,format=qcow2 \
+--graphics vnc,listen=0.0.0.0,port=60091,keymap=fr --noautoconsole \
+--network bridge=baremetalnet,mac=52:54:00:cc:ab:51 \
+--network bridge=baremetal,mac=52:54:00:9a:51:bc,virtualport_type=openvswitch,model=virtio,driver.name=vhost \
+--network bridge=baremetal,mac=52:54:00:4b:a5:70,virtualport_type=openvswitch,model=virtio,driver.name=vhost \
+--network bridge=isolated01,mac=52:54:00:98:cb:f5,virtualport_type=openvswitch,model=virtio,driver.name=vhost \
+--network bridge=isolated01,mac=52:54:00:2e:be:82,virtualport_type=openvswitch,model=virtio,driver.name=vhost \
+--name ospcomp02.ecintelligence.lab  --dry-run --print-xml > /tmp/openstack02.xml;  &&
+sudo virt-install --ram 16384 --vcpus 8 --os-variant rhl9 \
+--disk path=/var/lib/libvirt/images/edpm-compute-01.qcow2,device=disk,bus=virtio,format=qcow2 \
+--graphics vnc,listen=0.0.0.0,port=60090,keymap=fr --noautoconsole \
+--network bridge=baremetalnet,mac=52:54:00:44:1a:af \
+--network bridge=baremetal,mac=52:54:00:f4:ae:ea,virtualport_type=openvswitch,model=virtio,driver.name=vhost \
+--network bridge=baremetal,mac=52:54:00:d6:9e:11,virtualport_type=openvswitch,model=virtio,driver.name=vhost \
+--network bridge=isolated01,mac=52:54:00:e0:c2:d7,virtualport_type=openvswitch,model=virtio,driver.name=vhost \
+--network bridge=isolated01,mac=52:54:00:aa:90:82,virtualport_type=openvswitch,model=virtio,driver.name=vhost \
+--name ospcomp01.ecintelligence.lab  --dry-run --print-xml > /tmp/openstack01.xml; &&
+sudo virsh define --file /tmp/openstack01.xml &&
+sudo virsh define --file /tmp/openstack02.xml &&
+virsh start ospcomp01.ecintelligence.lab &&
+virsh start ospcomp02.ecintelligence.lab
+
+parted /dev/vda resizepart 4 100%
+xfs_growfs /dev/vda4
